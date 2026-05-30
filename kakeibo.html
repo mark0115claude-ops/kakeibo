@@ -159,7 +159,7 @@ body{
 .tbtn.inc{border-color:var(--grn);background:rgba(110,200,154,.1);color:var(--grn)}
 
 /* 支払方法チップ */
-.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .pchip{
   padding:9px 3px;border-radius:11px;
   border:1.5px solid var(--bdr);background:var(--sur);
@@ -417,10 +417,12 @@ canvas{display:block;width:100% !important;height:100% !important}
       <div class="fg">
         <label class="flbl">支払方法</label>
         <div class="pgrid">
-          <div class="pchip on" id="a-p-cash" onclick="selPay('add','cash')"><span class="pe">💴</span>現金</div>
-          <div class="pchip"    id="a-p-jal"  onclick="selPay('add','jal')"><span class="pe">✈️</span>JAL</div>
-          <div class="pchip"    id="a-p-jcb"  onclick="selPay('add','jcb')"><span class="pe">💳</span>JCB</div>
-          <div class="pchip"    id="a-p-visa" onclick="selPay('add','visa')"><span class="pe">💜</span>VISA</div>
+          <div class="pchip on" id="a-p-cash"  onclick="selPay('add','cash')"><span class="pe">💴</span>現金</div>
+          <div class="pchip"    id="a-p-jalma" onclick="selPay('add','jalma')"><span class="pe">✈️</span>JALま</div>
+          <div class="pchip"    id="a-p-jalas" onclick="selPay('add','jalas')"><span class="pe">✈️</span>JALあ</div>
+          <div class="pchip"    id="a-p-jcbma" onclick="selPay('add','jcbma')"><span class="pe">💳</span>JCBま</div>
+          <div class="pchip"    id="a-p-jcbas" onclick="selPay('add','jcbas')"><span class="pe">💳</span>JCBあ</div>
+          <div class="pchip"    id="a-p-visa"  onclick="selPay('add','visa')"><span class="pe">💜</span>VISA</div>
         </div>
       </div>
 
@@ -538,10 +540,12 @@ canvas{display:block;width:100% !important;height:100% !important}
     <div class="fg">
       <label class="flbl">支払方法</label>
       <div class="pgrid">
-        <div class="pchip" id="e-p-cash" onclick="selPay('edit','cash')"><span class="pe">💴</span>現金</div>
-        <div class="pchip" id="e-p-jal"  onclick="selPay('edit','jal')"><span class="pe">✈️</span>JAL</div>
-        <div class="pchip" id="e-p-jcb"  onclick="selPay('edit','jcb')"><span class="pe">💳</span>JCB</div>
-        <div class="pchip" id="e-p-visa" onclick="selPay('edit','visa')"><span class="pe">💜</span>VISA</div>
+        <div class="pchip" id="e-p-cash"  onclick="selPay('edit','cash')"><span class="pe">💴</span>現金</div>
+        <div class="pchip" id="e-p-jalma" onclick="selPay('edit','jalma')"><span class="pe">✈️</span>JALま</div>
+        <div class="pchip" id="e-p-jalas" onclick="selPay('edit','jalas')"><span class="pe">✈️</span>JALあ</div>
+        <div class="pchip" id="e-p-jcbma" onclick="selPay('edit','jcbma')"><span class="pe">💳</span>JCBま</div>
+        <div class="pchip" id="e-p-jcbas" onclick="selPay('edit','jcbas')"><span class="pe">💳</span>JCBあ</div>
+        <div class="pchip" id="e-p-visa"  onclick="selPay('edit','visa')"><span class="pe">💜</span>VISA</div>
       </div>
     </div>
     <button class="sbtn" onclick="saveEdit()">保存する</button>
@@ -580,8 +584,9 @@ const CATS = [
   {id:'other',     e:'📦', l:'その他'},
 ];
 
-const PAY_E = {cash:'💴', jal:'✈️', jcb:'💳', visa:'💜'};
-const PAY_L = {cash:'現金', jal:'JALカード', jcb:'JCBカード', visa:'VISAカード'};
+const PAY_E = {cash:'💴', jalma:'✈️', jalas:'✈️', jcbma:'💳', jcbas:'💳', visa:'💜'};
+const PAY_L = {cash:'現金', jalma:'JALま', jalas:'JALあ', jcbma:'JCBま', jcbas:'JCBあ', visa:'VISA'};
+const PAY_KEYS = ['cash','jalma','jalas','jcbma','jcbas','visa'];
 
 // ═══════════════════════════════════════════
 //  状態
@@ -882,8 +887,9 @@ function selType(t) {
 function selPay(pfx, p) {
   if (pfx==='add') aPay=p; else ePay=p;
   const pre = pfx==='add' ? 'a' : 'e';
-  ['cash','jal','jcb','visa'].forEach(x=>{
-    document.getElementById(pre+'-p-'+x).className='pchip'+(x===p?' on':'');
+  PAY_KEYS.forEach(x=>{
+    const el=document.getElementById(pre+'-p-'+x);
+    if(el) el.className='pchip'+(x===p?' on':'');
   });
 }
 function submitRec() {
@@ -991,11 +997,21 @@ function shiftChartMonth(d) {
   cMonth = new Date(cMonth.getFullYear(), cMonth.getMonth()+d, 1);
   renderChart();
 }
+// ── グラフ用グローバル変数（スコープ問題を根本解決）──
+let selectedPeriod = -1;   // 選択中の期間インデックス（-1=全体）
+let gPeriodRecs    = [];   // 期間ごとのレコード配列（配列の配列）
+let gLabels        = [];   // 期間ラベル配列
+let gFiltered      = [];   // 表示対象全件
+
 function renderChart() {
   document.getElementById('c-mlbl').textContent = cMonth.getFullYear()+'年'+p2(cMonth.getMonth()+1)+'月';
   if (typeof Chart==='undefined') return;
 
-  let labels=[],incD=[],expD=[],filtered=[];
+  // グローバル変数をリセット
+  gPeriodRecs = [];
+  gLabels     = [];
+  gFiltered   = [];
+  let incD=[], expD=[];
 
   if (cPer==='day') {
     const mk = mkey(cMonth);
@@ -1003,35 +1019,42 @@ function renderChart() {
     for (let d=1;d<=dm;d++) {
       const dt = cMonth.getFullYear()+'-'+p2(cMonth.getMonth()+1)+'-'+p2(d);
       const dr = recs.filter(r=>r.date===dt);
-      labels.push(d+'日');
+      gLabels.push(d+'日');
       incD.push(dr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0));
       expD.push(dr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0));
+      gPeriodRecs.push(dr);
     }
-    filtered = recs.filter(r=>r.date.startsWith(mk));
+    gFiltered = recs.filter(r=>r.date.startsWith(mk));
 
   } else if (cPer==='week') {
     const mk = mkey(cMonth);
-    for (let w=0;w<5;w++){labels.push('第'+(w+1)+'週');incD.push(0);expD.push(0);}
+    for (let w=0;w<5;w++){
+      gLabels.push('第'+(w+1)+'週');
+      incD.push(0); expD.push(0); gPeriodRecs.push([]);
+    }
     const first = new Date(cMonth.getFullYear(), cMonth.getMonth(), 1);
-    filtered = recs.filter(r=>r.date.startsWith(mk));
-    filtered.forEach(r=>{
+    gFiltered = recs.filter(r=>r.date.startsWith(mk));
+    gFiltered.forEach(r=>{
       const dd = Math.floor((new Date(r.date+'T00:00:00')-first)/86400000);
       const w  = Math.min(Math.floor(dd/7),4);
       if(r.type==='income') incD[w]+=r.amount; else expD[w]+=r.amount;
+      gPeriodRecs[w].push(r);
     });
 
   } else {
     const y = new Date().getFullYear();
     for (let m=0;m<12;m++) {
-      labels.push(p2(m+1)+'月');
+      gLabels.push(p2(m+1)+'月');
       const mk2=y+'-'+p2(m+1);
       const mr=recs.filter(r=>r.date.startsWith(mk2));
       incD.push(mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0));
       expD.push(mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0));
+      gPeriodRecs.push(mr);
     }
-    filtered = recs;
+    gFiltered = recs;
   }
 
+  // ── グラフ描画 ──
   const ctx = document.getElementById('myChart').getContext('2d');
   if (cInst) { cInst.destroy(); cInst=null; }
   Chart.defaults.color='#5a6078';
@@ -1041,14 +1064,23 @@ function renderChart() {
   cInst = new Chart(ctx,{
     type:'bar',
     data:{
-      labels,
+      labels: gLabels,
       datasets:[
         {label:'支出',data:expD,backgroundColor:'rgba(224,112,112,.72)',borderRadius:4,borderSkipped:false},
         {label:'収入',data:incD,backgroundColor:'rgba(110,200,154,.72)',borderRadius:4,borderSkipped:false},
       ]
     },
     options:{
-      responsive:true,maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false,
+      onClick:(evt, els)=>{
+        // グラフの棒タップで期間を選択 → グローバル変数を使うので確実に動作
+        if (els && els.length > 0) {
+          selectedPeriod = els[0].index;
+        } else {
+          selectedPeriod = -1;
+        }
+        renderSummarySection();
+      },
       plugins:{
         legend:{labels:{color:'#8890a8',boxWidth:10,font:{size:11}}},
         tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}
@@ -1060,34 +1092,93 @@ function renderChart() {
     }
   });
 
-  // サマリー
-  const tInc=incD.reduce((s,v)=>s+v,0);
-  const tExp=expD.reduce((s,v)=>s+v,0);
-  const bal =tInc-tExp;
-  document.getElementById('c-sum').innerHTML=`<div class="sumcard">
+  // 初期表示は全体
+  selectedPeriod = -1;
+  renderSummarySection();
+  renderCatSection();
+}
+
+// ── 期間選択ボタンから呼ぶグローバル関数 ──
+function selectPeriod(idx) {
+  selectedPeriod = idx;
+  renderSummarySection();
+}
+
+// ── 期間セレクタ＋サマリー＋支払方法別 ──
+// 引数なし・グローバル変数を参照するので、どこから呼んでも正しく動作する
+function renderSummarySection() {
+
+  // ── 期間セレクタHTML（日別・週別のみ）──
+  let selectorHTML = '';
+  if (cPer !== 'month') {
+    const btnBase = 'padding:5px 9px;border-radius:8px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;border:1.5px solid;';
+    const btns = gLabels.map((lbl,i) => {
+      const active = (selectedPeriod === i);
+      const style  = btnBase +
+        (active
+          ? 'border-color:var(--gold);background:rgba(200,169,110,.18);color:var(--gold)'
+          : 'border-color:var(--bdr);background:var(--sur);color:var(--sub)');
+      return `<button onclick="selectPeriod(${i})" style="${style}">${lbl}</button>`;
+    });
+    // 「全体」ボタン
+    const allActive = (selectedPeriod === -1);
+    const allStyle  = btnBase +
+      (allActive
+        ? 'border-color:var(--blue);background:rgba(126,184,201,.18);color:var(--blue)'
+        : 'border-color:var(--bdr);background:var(--sur);color:var(--sub)');
+    btns.push(`<button onclick="selectPeriod(-1)" style="${allStyle}">全体</button>`);
+
+    selectorHTML = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">${btns.join('')}</div>`;
+  }
+
+  // ── 集計対象レコードを決定 ──
+  const target = (selectedPeriod >= 0 && cPer !== 'month')
+    ? gPeriodRecs[selectedPeriod]
+    : gPeriodRecs.flat();
+
+  const perLabel = (selectedPeriod >= 0 && cPer !== 'month')
+    ? gLabels[selectedPeriod]
+    : (cPer === 'month' ? '年間' : '全体');
+
+  // ── 収支サマリー ──
+  const tInc = target.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const tExp = target.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  const bal  = tInc - tExp;
+  const sumHTML = `<div class="sumcard">
     <div class="sumitem"><div class="sumlbl">収入</div><div class="sumval" style="color:var(--grn)">${fmt(tInc)}</div></div>
     <div class="sdiv"></div>
     <div class="sumitem"><div class="sumlbl">支出</div><div class="sumval" style="color:var(--red)">${fmt(tExp)}</div></div>
     <div class="sdiv"></div>
-    <div class="sumitem"><div class="sumlbl">収支</div><div class="sumval" style="color:${bal>=0?'var(--grn)':'var(--red)'}">${(bal>=0?'+':'-')+fmt(bal)}</div></div>
+    <div class="sumitem"><div class="sumlbl">収支</div>
+      <div class="sumval" style="color:${bal>=0?'var(--grn)':'var(--red)'}">${(bal>=0?'+':'-')+fmt(bal)}</div>
+    </div>
   </div>`;
 
-  // 支払方法別
-  const pt={cash:0,jal:0,jcb:0,visa:0};
-  filtered.filter(r=>r.type==='expense').forEach(r=>{ pt[r.pay||'cash']+=r.amount; });
-  const maxP=Math.max(...Object.values(pt),0.01);
-  document.getElementById('c-pay').innerHTML=
-    Object.entries(pt).map(([k,v])=>
-      `<div class="sbrow">
-        <div class="sblbl">${PAY_E[k]} ${PAY_L[k].replace('カード','')}</div>
-        <div class="sbbg"><div class="sbfill" style="width:${(v/maxP*100).toFixed(1)}%"></div></div>
-        <div class="sbval">${fmt(v)}</div>
-      </div>`
-    ).join('');
+  // ── 支払方法別（targetから集計）──
+  const pt={};
+  PAY_KEYS.forEach(k=>pt[k]=0);
+  target.filter(r=>r.type==='expense').forEach(r=>{ pt[r.pay||'cash']+=r.amount; });
+  const maxP = Math.max(...Object.values(pt), 0.01);
+  const payHTML = PAY_KEYS.map(k=>
+    `<div class="sbrow">
+      <div class="sblbl">${PAY_E[k]} ${PAY_L[k]}</div>
+      <div class="sbbg"><div class="sbfill" style="width:${(pt[k]/maxP*100).toFixed(1)}%"></div></div>
+      <div class="sbval">${fmt(pt[k])}</div>
+    </div>`
+  ).join('');
 
-  // カテゴリ別
+  // ── DOM更新 ──
+  document.getElementById('c-sum').innerHTML =
+    selectorHTML +
+    `<div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">📊 ${perLabel}の集計</div>` +
+    sumHTML;
+  document.getElementById('c-pay').innerHTML = payHTML;
+}
+
+// ── カテゴリ別（gFiltered全体を対象）──
+function renderCatSection() {
   const ct={};
-  filtered.filter(r=>r.type==='expense').forEach(r=>{ const c=r.cat||'other'; ct[c]=(ct[c]||0)+r.amount; });
+  gFiltered.filter(r=>r.type==='expense').forEach(r=>{ const c=r.cat||'other'; ct[c]=(ct[c]||0)+r.amount; });
   const ca=Object.entries(ct).sort((a,b)=>b[1]-a[1]);
   const maxC=Math.max(...ca.map(x=>x[1]),0.01);
   document.getElementById('c-cat').innerHTML=ca.length
