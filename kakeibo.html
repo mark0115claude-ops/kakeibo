@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<title>家計簿アプリ</title>
+<style>
+/* ─── 変数 ─── */
+:root{
+  --bg:#0c0e14; --sur:#13161f; --card:#1a1e2a; --bdr:#252a38;
+  --gold:#c8a96e; --blue:#7eb8c9; --red:#e07070; --grn:#6ec89a;
+  --txt:#e8eaf0; --muted:#5a6078; --sub:#8890a8;
+  --st:env(safe-area-inset-top,44px);
+  --sb:env(safe-area-inset-bottom,20px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{
+  font-family:'Hiragino Sans','Yu Gothic UI','Noto Sans JP',sans-serif;
+  color:var(--txt);display:flex;flex-direction:column;
+  max-width:430px;margin:0 auto;position:relative
+}
+
+/* ─── ヘッダー ─── */
+#hdr{
+  padding:calc(var(--st) + 8px) 18px 12px;
+  background:rgba(12,14,20,.95);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+  border-bottom:1px solid var(--bdr)
+}
+.logo{font-size:20px;font-weight:800;color:var(--gold);letter-spacing:.5px}
+.logo small{color:var(--sub);font-size:10px;font-weight:400;display:block;letter-spacing:1.5px;margin-top:1px}
+#hdr-date{font-size:11px;color:var(--muted)}
+
+/* ─── メインスクロール ─── */
+#main{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:0 14px calc(var(--sb) + 86px)
+}
+#main::-webkit-scrollbar{display:none}
+
+/* ─── 底部ナビ ─── */
+#nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:430px;
+  background:rgba(10,12,18,.97);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--bdr);
+  display:flex;justify-content:space-around;
+  padding:8px 0 calc(var(--sb) + 6px);z-index:100
+}
+.nb{
+  background:none;border:none;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:5px 16px;border-radius:12px
+}
+.nb svg{width:22px;height:22px;stroke:var(--muted);fill:none;stroke-width:1.8;transition:stroke .2s}
+.nb .nl{font-size:10px;color:var(--muted);font-weight:600;transition:color .2s}
+.nb.on svg{stroke:var(--gold)}
+.nb.on .nl{color:var(--gold)}
+.nb.fab{
+  background:linear-gradient(135deg,var(--gold),#e8c47e);
+  padding:9px 20px;border-radius:50px;margin-top:-8px;
+  box-shadow:0 4px 18px rgba(200,169,110,.4)
+}
+.nb.fab svg{stroke:#0c0e14 !important}
+.nb.fab .nl{color:#0c0e14 !important;font-weight:700}
+
+/* ─── ビュー ─── */
+.view{display:none}
+.view.on{display:block;animation:fu .25s ease}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── バランスカード ─── */
+.bal-card{
+  background:linear-gradient(135deg,#1c2034,#141826);
+  border:1px solid rgba(200,169,110,.2);
+  border-radius:22px;padding:20px 18px 18px;
+  margin:12px 0 14px;position:relative;overflow:hidden
+}
+.bal-card::after{
+  content:'';position:absolute;top:-50px;right:-50px;
+  width:160px;height:160px;
+  background:radial-gradient(circle,rgba(200,169,110,.1),transparent 70%);
+  border-radius:50%;pointer-events:none
+}
+.bal-lbl{font-size:10px;color:var(--muted);letter-spacing:1.5px;margin-bottom:4px}
+.bal-num{font-size:38px;font-weight:800;color:var(--gold);letter-spacing:-1px;line-height:1.1}
+.bal-num.neg{color:var(--red)}
+.bal-row{display:flex;gap:14px;margin-top:14px}
+.bal-item{flex:1}
+.bal-item-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px}
+.bal-item-val{font-size:16px;font-weight:700}
+
+/* ─── 月ナビ ─── */
+.mnav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px}
+.marr{background:none;border:none;color:var(--sub);font-size:26px;cursor:pointer;padding:0 10px;line-height:1}
+.mlbl{font-size:15px;font-weight:700;color:var(--txt)}
+
+/* ─── セクションタイトル ─── */
+.sec{font-size:10px;color:var(--muted);letter-spacing:2px;font-weight:700;text-transform:uppercase;margin:16px 0 8px}
+
+/* ─── 記録行 ─── */
+.rrow{
+  display:flex;align-items:center;gap:11px;
+  padding:12px 13px;background:var(--card);
+  border:1px solid var(--bdr);border-radius:14px;
+  margin-bottom:7px;cursor:pointer;
+  -webkit-user-select:none;transition:background .12s
+}
+.rrow:active{background:#1c2133;transform:scale(.985)}
+.rico{
+  width:40px;height:40px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:19px;flex-shrink:0
+}
+.rbody{flex:1;min-width:0}
+.rdesc{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmeta{font-size:11px;color:var(--sub);margin-top:2px}
+.rbadge{
+  font-size:10px;background:var(--sur);color:var(--sub);
+  padding:2px 7px;border-radius:99px;display:inline-block;margin-top:3px
+}
+.ramt{font-size:15px;font-weight:700;flex-shrink:0}
+.pay-cash{background:rgba(110,200,154,.12)}
+.pay-jal{background:rgba(126,184,201,.12)}
+.pay-jcb{background:rgba(200,169,110,.12)}
+.pay-visa{background:rgba(160,126,224,.12)}
+
+/* ─── フォーム ─── */
+.fcard{background:var(--card);border:1px solid var(--bdr);border-radius:20px;padding:18px;margin-bottom:10px}
+.fttl{font-size:10px;color:var(--muted);letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:16px}
+.fg{margin-bottom:15px}
+.flbl{display:block;font-size:11px;color:var(--sub);font-weight:700;margin-bottom:8px}
+.finp{
+  width:100%;padding:13px 15px;
+  background:var(--sur);border:1.5px solid var(--bdr);
+  border-radius:13px;color:var(--txt);
+  font-family:inherit;font-size:16px;
+  outline:none;-webkit-appearance:none;
+  transition:border-color .18s
+}
+.finp:focus{border-color:var(--gold)}
+.finp::placeholder{color:var(--muted)}
+
+/* 収支トグル */
+.trow{display:flex;gap:8px}
+.tbtn{
+  flex:1;padding:11px;border-radius:12px;
+  border:1.5px solid var(--bdr);background:var(--sur);
+  color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit
+}
+.tbtn.exp{border-color:var(--red);background:rgba(224,112,112,.1);color:var(--red)}
+.tbtn.inc{border-color:var(--grn);background:rgba(110,200,154,.1);color:var(--grn)}
+
+/* 支払方法チップ */
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.pchip{
+  padding:9px 3px;border-radius:11px;
+  border:1.5px solid var(--bdr);background:var(--sur);
+  color:var(--sub);font-size:11px;font-weight:700;
+  text-align:center;cursor:pointer;line-height:1.4
+}
+.pchip .pe{font-size:16px;display:block;margin-bottom:2px}
+.pchip.on{border-color:var(--gold);background:rgba(200,169,110,.12);color:var(--gold)}
+
+/* カテゴリグリッド */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.cchip{
+  padding:10px 4px;border-radius:11px;
+  border:1.5px solid var(--bdr);background:var(--sur);
+  color:var(--sub);font-size:11px;font-weight:700;
+  text-align:center;cursor:pointer;line-height:1.4
+}
+.cchip .ce{font-size:19px;display:block;margin-bottom:3px}
+.cchip.on{border-color:var(--blue);background:rgba(126,184,201,.12);color:var(--blue)}
+
+/* ─── 音声入力エリア ─── */
+.vbox{
+  border:1.5px solid var(--bdr);border-radius:13px;
+  background:var(--sur);overflow:hidden;margin-bottom:7px
+}
+.vbtn{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 14px;cursor:pointer;
+  -webkit-user-select:none;transition:background .12s
+}
+.vbtn:active{background:rgba(255,255,255,.03)}
+.vbtn.rec{border-bottom:1px solid var(--bdr);background:rgba(224,112,112,.07);border-color:var(--red) !important}
+.vicon{
+  width:38px;height:38px;border-radius:10px;
+  background:rgba(200,169,110,.1);border:1.5px solid rgba(200,169,110,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;transition:all .2s
+}
+.vbtn.rec .vicon{background:rgba(224,112,112,.15);border-color:rgba(224,112,112,.3)}
+.vtxt{flex:1}
+.vtxt strong{display:block;font-size:13px;font-weight:700;color:var(--txt)}
+.vtxt small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.vbtn.rec .vtxt strong{color:var(--red)}
+.vdot{width:8px;height:8px;border-radius:50%;background:var(--red);display:none;flex-shrink:0}
+.vbtn.rec .vdot{display:block;animation:bl .7s infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.15}}
+.vstat{
+  padding:9px 14px;font-size:12px;
+  display:none;border-top:1px solid var(--bdr)
+}
+.vstat.show{display:block}
+.vstat.ok{color:var(--grn)}
+.vstat.ng{color:var(--red)}
+.vstat.info{color:var(--gold)}
+
+/* 音声入力ヒントバナー */
+.vhint{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 13px;
+  background:rgba(126,184,201,.07);
+  border:1px solid rgba(126,184,201,.2);
+  border-radius:11px;margin-top:7px
+}
+.vhint-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.vhint p{font-size:11px;color:var(--sub);line-height:1.6}
+.vhint strong{color:var(--blue)}
+
+/* ─── 追加ボタン ─── */
+.sbtn{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--gold),#e8c47e);
+  border:none;border-radius:14px;color:#0c0e14;
+  font-family:inherit;font-size:16px;font-weight:800;
+  cursor:pointer;letter-spacing:.3px;
+  box-shadow:0 4px 16px rgba(200,169,110,.25);margin-top:4px
+}
+.sbtn:active{transform:scale(.97)}
+.dbtn{
+  width:100%;padding:12px;background:none;
+  border:1.5px solid var(--red);border-radius:13px;
+  color:var(--red);font-family:inherit;font-size:14px;
+  font-weight:700;cursor:pointer;margin-top:9px
+}
+
+/* ─── グラフタブ ─── */
+.ptabs{display:flex;gap:6px;margin-bottom:12px}
+.ptab{
+  flex:1;padding:9px;border-radius:10px;
+  border:1.5px solid var(--bdr);background:var(--sur);
+  color:var(--sub);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit
+}
+.ptab.on{border-color:var(--blue);background:rgba(126,184,201,.1);color:var(--blue)}
+.cwrap{border-radius:14px;background:var(--sur);padding:14px 10px 8px;height:230px}
+canvas{display:block;width:100% !important;height:100% !important}
+
+/* ─── 統計バー ─── */
+.sbrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.sblbl{font-size:12px;color:var(--txt);width:76px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbbg{flex:1;height:6px;background:var(--sur);border-radius:99px;overflow:hidden}
+.sbfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),#e8c47e);transition:width .5s}
+.sbval{font-size:12px;font-weight:700;color:var(--gold);width:70px;text-align:right;flex-shrink:0}
+.sbfill.blue{background:linear-gradient(90deg,var(--blue),#9ed8ea)}
+
+/* ─── サマリーカード ─── */
+.sumcard{
+  background:var(--card);border:1px solid var(--bdr);
+  border-radius:14px;padding:13px 16px;
+  display:flex;gap:10px;text-align:center;margin-bottom:10px
+}
+.sumitem{flex:1}
+.sumlbl{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px}
+.sumval{font-size:16px;font-weight:800}
+.sdiv{width:1px;background:var(--bdr)}
+
+/* ─── モーダル ─── */
+#mov{
+  display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  align-items:flex-end;justify-content:center
+}
+#mov.on{display:flex}
+#mod{
+  background:var(--card);border-radius:24px 24px 0 0;
+  width:100%;max-width:430px;
+  padding:16px 16px calc(var(--sb) + 16px);
+  border-top:1px solid var(--bdr);
+  max-height:94vh;overflow-y:auto;
+  animation:su .25s ease
+}
+#mod::-webkit-scrollbar{display:none}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhndl{width:34px;height:4px;background:var(--bdr);border-radius:99px;margin:0 auto 15px}
+.mttl{font-size:20px;font-weight:800;margin-bottom:16px}
+
+/* ─── トースト ─── */
+#toast{
+  position:fixed;bottom:calc(var(--sb) + 86px);left:50%;
+  transform:translateX(-50%) translateY(14px);
+  background:var(--grn);color:#0c0e14;
+  padding:9px 20px;border-radius:99px;font-size:13px;font-weight:700;
+  opacity:0;transition:all .25s;pointer-events:none;z-index:500;white-space:nowrap
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--red);color:#fff}
+
+/* ─── 空メッセージ ─── */
+.empty{text-align:center;color:var(--muted);padding:48px 0;font-size:14px}
+
+/* ─── 区切り線 ─── */
+.hdiv{width:1px;background:var(--bdr)}
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div id="hdr">
+  <div class="logo">💴 家計簿 <small>MoneyLog</small></div>
+  <div id="hdr-date"></div>
+</div>
+
+<!-- メイン -->
+<div id="main">
+
+  <!-- ホーム -->
+  <div class="view on" id="v-home">
+    <div class="bal-card">
+      <div class="bal-lbl">今月の収支バランス</div>
+      <div class="bal-num" id="h-bal">$0.00</div>
+      <div class="bal-row">
+        <div class="bal-item">
+          <div class="bal-item-lbl">収入</div>
+          <div class="bal-item-val" id="h-inc" style="color:var(--grn)">$0.00</div>
+        </div>
+        <div class="hdiv"></div>
+        <div class="bal-item" style="text-align:right">
+          <div class="bal-item-lbl">支出</div>
+          <div class="bal-item-val" id="h-exp" style="color:var(--red)">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="mnav">
+      <button class="marr" onclick="shiftMonth(-1)">‹</button>
+      <span class="mlbl" id="h-mlbl"></span>
+      <button class="marr" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="sec">取引一覧</div>
+    <div id="h-recs"></div>
+  </div>
+
+  <!-- 入力 -->
+  <div class="view" id="v-add">
+    <div style="height:8px"></div>
+    <div class="fcard">
+      <div class="fttl">新規記録</div>
+
+      <div class="fg">
+        <label class="flbl">種別</label>
+        <div class="trow">
+          <button class="tbtn exp" id="btn-exp" onclick="selType('expense')">💸 支出</button>
+          <button class="tbtn" id="btn-inc" onclick="selType('income')">💰 収入</button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label class="flbl">日付</label>
+        <input type="date" class="finp" id="a-date">
+      </div>
+
+      <!-- 音声入力：内容 -->
+      <div class="fg">
+        <label class="flbl">内容・説明</label>
+        <div class="vbox">
+          <div class="vbtn" id="vb-desc" onclick="startVoice('a-desc','vb-desc','vs-desc')">
+            <div class="vicon">🎤</div>
+            <div class="vtxt">
+              <strong id="vb-desc-lbl">タップして音声入力</strong>
+              <small>例：「スーパーで食料品」「ランチ代」</small>
+            </div>
+            <div class="vdot"></div>
+          </div>
+          <div class="vstat" id="vs-desc"></div>
+        </div>
+        <input type="text" class="finp" id="a-desc" placeholder="内容を入力（直接入力も可）">
+        <div class="vhint">
+          <div class="vhint-icon">💡</div>
+          <p>音声入力できない場合は、テキスト欄をタップ → キーボード下部の<strong>🎤マイクボタン</strong>を押してください</p>
+        </div>
+      </div>
+
+      <!-- 音声入力：金額 -->
+      <div class="fg">
+        <label class="flbl">金額（USドル）</label>
+        <div class="vbox">
+          <div class="vbtn" id="vb-amt" onclick="startVoice('a-amt','vb-amt','vs-amt')">
+            <div class="vicon">🎤</div>
+            <div class="vtxt">
+              <strong id="vb-amt-lbl">タップして音声入力</strong>
+              <small>例：「じゅうごてんごぜろ」「15.50」「twenty dollars」</small>
+            </div>
+            <div class="vdot"></div>
+          </div>
+          <div class="vstat" id="vs-amt"></div>
+        </div>
+        <input type="number" inputmode="decimal" class="finp" id="a-amt" placeholder="0.00" step="0.01">
+      </div>
+
+      <!-- カテゴリ（支出時のみ） -->
+      <div class="fg" id="a-catsec">
+        <label class="flbl">カテゴリ（支出の種類）</label>
+        <div class="cgrid" id="a-catgrid"></div>
+      </div>
+
+      <!-- 支払方法 -->
+      <div class="fg">
+        <label class="flbl">支払方法</label>
+        <div class="pgrid">
+          <div class="pchip on" id="a-p-cash" onclick="selPay('add','cash')"><span class="pe">💴</span>現金</div>
+          <div class="pchip"    id="a-p-jal"  onclick="selPay('add','jal')"><span class="pe">✈️</span>JAL</div>
+          <div class="pchip"    id="a-p-jcb"  onclick="selPay('add','jcb')"><span class="pe">💳</span>JCB</div>
+          <div class="pchip"    id="a-p-visa" onclick="selPay('add','visa')"><span class="pe">💜</span>VISA</div>
+        </div>
+      </div>
+
+      <button class="sbtn" onclick="submitRec()">＋ この記録を追加する</button>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="view" id="v-chart">
+    <div style="height:8px"></div>
+    <div class="ptabs">
+      <button class="ptab on" onclick="setPeriod('day',this)">日別</button>
+      <button class="ptab"    onclick="setPeriod('week',this)">週別</button>
+      <button class="ptab"    onclick="setPeriod('month',this)">月別</button>
+    </div>
+    <div class="mnav" id="c-mnav">
+      <button class="marr" onclick="shiftChartMonth(-1)">‹</button>
+      <span class="mlbl" id="c-mlbl"></span>
+      <button class="marr" onclick="shiftChartMonth(1)">›</button>
+    </div>
+    <div class="cwrap"><canvas id="myChart"></canvas></div>
+    <div class="sec" style="margin-top:18px">集計サマリー</div>
+    <div id="c-sum"></div>
+    <div class="sec">支払方法別</div>
+    <div id="c-pay"></div>
+    <div class="sec">カテゴリ別支出</div>
+    <div id="c-cat"></div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="view" id="v-hist">
+    <div style="height:8px"></div>
+    <div class="mnav">
+      <button class="marr" onclick="shiftHistMonth(-1)">‹</button>
+      <span class="mlbl" id="hist-mlbl"></span>
+      <button class="marr" onclick="shiftHistMonth(1)">›</button>
+    </div>
+    <div id="hist-recs"></div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- 底部ナビ -->
+<nav id="nav">
+  <button class="nb on" onclick="gotoView('home',this)">
+    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="nl">ホーム</span>
+  </button>
+  <button class="nb" onclick="gotoView('chart',this)">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span class="nl">グラフ</span>
+  </button>
+  <button class="nb fab" onclick="gotoView('add',this)">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span class="nl">追加</span>
+  </button>
+  <button class="nb" onclick="gotoView('hist',this)">
+    <svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4.5"/><polyline points="3 3 3 8 8 8"/></svg>
+    <span class="nl">履歴</span>
+  </button>
+</nav>
+
+<!-- 編集モーダル -->
+<div id="mov" onclick="closeMov(event)">
+  <div id="mod">
+    <div class="mhndl"></div>
+    <div class="mttl">✏️ 記録を編集・修正</div>
+
+    <div class="fg">
+      <label class="flbl">種別</label>
+      <div class="trow">
+        <button class="tbtn exp" id="e-btn-exp" onclick="eSelType('expense')">💸 支出</button>
+        <button class="tbtn"     id="e-btn-inc" onclick="eSelType('income')">💰 収入</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="flbl">日付</label>
+      <input type="date" class="finp" id="e-date">
+    </div>
+    <div class="fg">
+      <label class="flbl">内容・説明</label>
+      <div class="vbox">
+        <div class="vbtn" id="evb-desc" onclick="startVoice('e-desc','evb-desc','evs-desc')">
+          <div class="vicon">🎤</div>
+          <div class="vtxt">
+            <strong id="evb-desc-lbl">タップして音声入力</strong>
+            <small>または下のテキスト欄に直接入力</small>
+          </div>
+          <div class="vdot"></div>
+        </div>
+        <div class="vstat" id="evs-desc"></div>
+      </div>
+      <input type="text" class="finp" id="e-desc">
+    </div>
+    <div class="fg">
+      <label class="flbl">金額（USドル）</label>
+      <div class="vbox">
+        <div class="vbtn" id="evb-amt" onclick="startVoice('e-amt','evb-amt','evs-amt')">
+          <div class="vicon">🎤</div>
+          <div class="vtxt">
+            <strong id="evb-amt-lbl">タップして音声入力</strong>
+            <small>例：「じゅうごてんごぜろ」「15.50」</small>
+          </div>
+          <div class="vdot"></div>
+        </div>
+        <div class="vstat" id="evs-amt"></div>
+      </div>
+      <input type="number" inputmode="decimal" class="finp" id="e-amt" step="0.01">
+    </div>
+    <div class="fg" id="e-catsec">
+      <label class="flbl">カテゴリ</label>
+      <div class="cgrid" id="e-catgrid"></div>
+    </div>
+    <div class="fg">
+      <label class="flbl">支払方法</label>
+      <div class="pgrid">
+        <div class="pchip" id="e-p-cash" onclick="selPay('edit','cash')"><span class="pe">💴</span>現金</div>
+        <div class="pchip" id="e-p-jal"  onclick="selPay('edit','jal')"><span class="pe">✈️</span>JAL</div>
+        <div class="pchip" id="e-p-jcb"  onclick="selPay('edit','jcb')"><span class="pe">💳</span>JCB</div>
+        <div class="pchip" id="e-p-visa" onclick="selPay('edit','visa')"><span class="pe">💜</span>VISA</div>
+      </div>
+    </div>
+    <button class="sbtn" onclick="saveEdit()">保存する</button>
+    <button class="dbtn" onclick="deleteRec()">🗑 この記録を削除する</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════
+//  定数
+// ═══════════════════════════════════════════
+const SK = 'kakeiboML_v3';
+
+const CATS = [
+  {id:'food',      e:'🍱', l:'食費'},
+  {id:'eat-out',   e:'🍽️', l:'外食'},
+  {id:'drink',     e:'☕', l:'カフェ'},
+  {id:'groceries', e:'🛒', l:'日用品'},
+  {id:'transport', e:'🚃', l:'交通費'},
+  {id:'taxi',      e:'🚕', l:'タクシー'},
+  {id:'housing',   e:'🏠', l:'住居費'},
+  {id:'utility',   e:'💡', l:'光熱費'},
+  {id:'phone',     e:'📱', l:'通信費'},
+  {id:'medical',   e:'🏥', l:'医療費'},
+  {id:'clothing',  e:'👗', l:'衣類'},
+  {id:'beauty',    e:'💄', l:'美容'},
+  {id:'entertain', e:'🎮', l:'娯楽'},
+  {id:'travel',    e:'✈️', l:'旅行'},
+  {id:'education', e:'📚', l:'教育'},
+  {id:'fitness',   e:'💪', l:'フィットネス'},
+  {id:'insurance', e:'🛡️', l:'保険'},
+  {id:'gift',      e:'🎁', l:'ギフト'},
+  {id:'other',     e:'📦', l:'その他'},
+];
+
+const PAY_E = {cash:'💴', jal:'✈️', jcb:'💳', visa:'💜'};
+const PAY_L = {cash:'現金', jal:'JALカード', jcb:'JCBカード', visa:'VISAカード'};
+
+// ═══════════════════════════════════════════
+//  状態
+// ═══════════════════════════════════════════
+let recs       = JSON.parse(localStorage.getItem(SK)||'[]');
+let aType='expense', aPay='cash', aCat='food';
+let eType='expense', ePay='cash', eCat='food', eId=null;
+let vMonth  = new Date();
+let cMonth  = new Date();
+let hMonth  = new Date();
+let cPer    = 'day';
+let cInst   = null;
+let curRecog = null;   // 現在の音声認識インスタンス
+
+// ═══════════════════════════════════════════
+//  ユーティリティ
+// ═══════════════════════════════════════════
+const fmt   = n => '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const toDay = () => { const d=new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()); };
+const p2    = n => String(n).padStart(2,'0');
+const mkey  = d => d.getFullYear()+'-'+p2(d.getMonth()+1);
+const uid   = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const save  = () => localStorage.setItem(SK, JSON.stringify(recs));
+const catOf = id => CATS.find(c=>c.id===id)||{e:'📦',l:'その他'};
+
+// 読み上げ数字 → float変換（日本語・英語両対応）
+function spokenToNum(s) {
+  s = s.trim().replace(/ドル|円|dollars?|USD|\s/gi,'');
+  // アラビア数字・小数点ならそのまま
+  const d = parseFloat(s.replace(/,/g,''));
+  if (!isNaN(d) && d >= 0) return d;
+  // ひらがな数字テーブル（よみがな）
+  const kana = {
+    'ぜろ':0,'いち':1,'に':2,'さん':3,'し':4,'よん':4,
+    'ご':5,'ろく':6,'なな':7,'しち':7,'はち':8,'きゅう':9,'く':9,
+    'じゅう':10,'じゅ':10,'ひゃく':100,'ひゃっ':100,'せん':1000,'まん':10000,
+  };
+  const kanji = {零:0,〇:0,一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,
+    十:10,百:100,千:1000,万:10000};
+  // まずかな変換チェック（簡易）
+  let work = s;
+  for (const [k,v] of Object.entries(kana)) work = work.split(k).join('\x00'+v+'\x00');
+  for (const [k,v] of Object.entries(kanji)) work = work.split(k).join('\x00'+v+'\x00');
+  const tokens = work.split('\x00').filter(x=>x.trim()!=='');
+  if (tokens.length===0) return NaN;
+  let total=0, cur=0;
+  for (const t of tokens) {
+    const v = Number(t);
+    if (isNaN(v)) return NaN;
+    if (v === 0) continue;
+    if (v >= 10000) { total += (cur||1)*v; cur=0; }
+    else if (v >= 100) { cur = (cur||1)*v; }
+    else if (v >= 10) { cur += (cur%100===0?1:0)*v; if(cur===0)cur=v; }
+    else cur += v;
+  }
+  return total + cur;
+}
+
+// ═══════════════════════════════════════════
+//  初期化
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  const wd  = ['日','月','火','水','木','金','土'];
+  document.getElementById('hdr-date').textContent =
+    now.getFullYear()+'年'+p2(now.getMonth()+1)+'月'+p2(now.getDate())+'日（'+wd[now.getDay()]+'）';
+  document.getElementById('a-date').value = toDay();
+  buildCatGrid('a-catgrid','add');
+  buildCatGrid('e-catgrid','edit');
+  renderHome();
+  renderHist();
+  loadChart();
+});
+
+// ═══════════════════════════════════════════
+//  カテゴリグリッド構築
+// ═══════════════════════════════════════════
+function buildCatGrid(gid, pfx) {
+  const g = document.getElementById(gid);
+  const cur = pfx==='add' ? aCat : eCat;
+  g.innerHTML = CATS.map(c =>
+    `<div class="cchip${c.id===cur?' on':''}" id="${pfx}-c-${c.id}" onclick="selCat('${pfx}','${c.id}')">
+      <span class="ce">${c.e}</span>${c.l}
+    </div>`
+  ).join('');
+}
+function selCat(pfx, id) {
+  if (pfx==='add') aCat=id; else eCat=id;
+  document.querySelectorAll(`#${pfx==='add'?'a':'e'}-catgrid .cchip`).forEach(el=>el.classList.remove('on'));
+  const t = document.getElementById(`${pfx}-c-${id}`);
+  if (t) t.classList.add('on');
+}
+
+// ═══════════════════════════════════════════
+//  音声入力
+//  iOS Safari では webkitSpeechRecognition が
+//  iOS 17+ から再び使えるようになったが、
+//  HTTPS必須・ユーザージェスチャー必須・
+//  continuous=false のみ安定して動作する。
+//  本実装はこれらの制約を厳守する。
+// ═══════════════════════════════════════════
+function startVoice(fieldId, btnId, statId) {
+  const field = document.getElementById(fieldId);
+  const btn   = document.getElementById(btnId);
+  const stat  = document.getElementById(statId);
+  const lblId = btnId + '-lbl';
+  const lbl   = document.getElementById(lblId);
+  const isAmt = fieldId.includes('amt');
+
+  // 録音中なら停止
+  if (btn.classList.contains('rec')) {
+    if (curRecog) { try { curRecog.stop(); } catch(e){} curRecog=null; }
+    btn.classList.remove('rec');
+    lbl.textContent = 'タップして音声入力';
+    setVStat(stat,'','');
+    return;
+  }
+
+  // 既存の認識があれば先に止める
+  if (curRecog) { try { curRecog.stop(); } catch(e){} curRecog=null; }
+
+  // SpeechRecognition API チェック
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    setVStat(stat,'⚠️ お使いの環境ではブラウザ音声APIが利用できません。テキスト欄をタップ → キーボードの 🎤 ボタンをご利用ください。','ng');
+    setTimeout(()=>field.focus(), 100);
+    return;
+  }
+
+  // 認識開始
+  try {
+    const r = new SR();
+    curRecog = r;
+    r.lang = 'ja-JP';
+    r.continuous = false;
+    r.interimResults = false;
+    r.maxAlternatives = 5;
+
+    btn.classList.add('rec');
+    lbl.textContent = '🎙 認識中… もう一度タップで停止';
+    setVStat(stat,'🎙 話しかけてください…','info');
+
+    r.onresult = (ev) => {
+      // 全候補から最適なものを選ぶ
+      const results = Array.from(ev.results[0]);
+      let best = results[0].transcript;
+      let bestConf = results[0].confidence;
+      for (const alt of results) {
+        if (alt.confidence > bestConf) { best=alt.transcript; bestConf=alt.confidence; }
+      }
+      best = best.trim();
+
+      if (isAmt) {
+        const num = spokenToNum(best);
+        if (!isNaN(num) && num > 0) {
+          field.value = num.toFixed(2);
+          setVStat(stat, `✅ 認識: 「${best}」→ $${num.toFixed(2)} （信頼度:${Math.round(bestConf*100)}%）`, 'ok');
+        } else {
+          // 数字に変換できない場合はそのままフィールドに入れてユーザーに確認させる
+          field.value = best;
+          setVStat(stat, `⚠️ 認識: 「${best}」（数字に変換できませんでした。確認してください）`, 'ng');
+        }
+      } else {
+        field.value = best;
+        setVStat(stat, `✅ 認識: 「${best}」`, 'ok');
+      }
+      btn.classList.remove('rec');
+      lbl.textContent = 'タップして音声入力';
+      curRecog = null;
+    };
+
+    r.onerror = (ev) => {
+      btn.classList.remove('rec');
+      lbl.textContent = 'タップして音声入力';
+      curRecog = null;
+      const msgs = {
+        'not-allowed': '🚫 マイクへのアクセスが拒否されています。\niPhoneの「設定」→「Safari」→「マイク」を「許可」にしてください。',
+        'no-speech':   '🔇 音声が検出されませんでした。もう一度タップしてゆっくり話してください。',
+        'network':     '📡 ネットワークエラー。通信状態を確認してください（音声認識はインターネット接続が必要です）。',
+        'audio-capture':'🎙 マイクが見つかりません。マイクの接続を確認してください。',
+        'service-not-allowed':'🔒 このページではSafariの音声認識が利用できません。HTTPSでアクセスしてください。',
+        'aborted':     '⏹ 音声入力を中断しました。',
+      };
+      const msg = msgs[ev.error] || `❌ エラー（${ev.error}）\nテキスト欄をタップ → キーボードの 🎤 ボタンをご利用ください。`;
+      setVStat(stat, msg, 'ng');
+      // フォールバック：テキスト欄にフォーカスしてキーボードを表示
+      setTimeout(()=>field.focus(), 300);
+    };
+
+    r.onend = () => {
+      if (btn.classList.contains('rec')) {
+        btn.classList.remove('rec');
+        lbl.textContent = 'タップして音声入力';
+      }
+      curRecog = null;
+    };
+
+    r.start();
+
+  } catch(err) {
+    btn.classList.remove('rec');
+    lbl.textContent = 'タップして音声入力';
+    curRecog = null;
+    setVStat(stat, `❌ 開始エラー: ${err.message}`, 'ng');
+    setTimeout(()=>field.focus(), 200);
+  }
+}
+
+function setVStat(el, msg, cls) {
+  el.textContent = msg;
+  el.className = 'vstat' + (cls ? ' show '+cls : '');
+  // 成功メッセージは5秒後に消す
+  if (cls==='ok') {
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>{ el.className='vstat'; }, 5000);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  ナビゲーション
+// ═══════════════════════════════════════════
+function gotoView(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+name).classList.add('on');
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  if (btn && !btn.classList.contains('fab')) btn.classList.add('on');
+
+  // 追加フォームリセット
+  if (name==='add') {
+    document.getElementById('a-date').value = toDay();
+    selType('expense'); selPay('add','cash'); selCat('add','food');
+    document.getElementById('a-desc').value = '';
+    document.getElementById('a-amt').value  = '';
+    // 音声UI リセット
+    ['vb-desc','vb-amt'].forEach(id=>{
+      const b=document.getElementById(id);
+      b.classList.remove('rec');
+      document.getElementById(id+'-lbl').textContent='タップして音声入力';
+    });
+    ['vs-desc','vs-amt'].forEach(id=>{ document.getElementById(id).className='vstat'; });
+    if (curRecog) { try{curRecog.stop();}catch(e){} curRecog=null; }
+  }
+  if (name==='home')  renderHome();
+  if (name==='chart') renderChart();
+  if (name==='hist')  renderHist();
+}
+
+// ═══════════════════════════════════════════
+//  ホーム
+// ═══════════════════════════════════════════
+function shiftMonth(d) {
+  vMonth = new Date(vMonth.getFullYear(), vMonth.getMonth()+d, 1);
+  renderHome();
+}
+function renderHome() {
+  const mk = mkey(vMonth);
+  document.getElementById('h-mlbl').textContent = vMonth.getFullYear()+'年'+p2(vMonth.getMonth()+1)+'月';
+  const rs  = recs.filter(r=>r.date.startsWith(mk));
+  const inc = rs.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const exp = rs.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  const bal = inc-exp;
+  const be  = document.getElementById('h-bal');
+  be.textContent = (bal<0?'-':'')+fmt(bal);
+  be.className   = 'bal-num'+(bal<0?' neg':'');
+  document.getElementById('h-inc').textContent = fmt(inc);
+  document.getElementById('h-exp').textContent = fmt(exp);
+  const el   = document.getElementById('h-recs');
+  const srt  = [...rs].sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML = srt.length ? srt.map(rowHTML).join('') : '<div class="empty">この月の記録はありません</div>';
+}
+
+// ═══════════════════════════════════════════
+//  記録行HTML
+// ═══════════════════════════════════════════
+function rowHTML(r) {
+  const isI = r.type==='income';
+  const cat = catOf(r.cat||'other');
+  return `<div class="rrow" onclick="openEdit('${r.id}')">
+    <div class="rico pay-${r.pay}">${isI ? PAY_E[r.pay]||'💰' : cat.e}</div>
+    <div class="rbody">
+      <div class="rdesc">${r.desc||'（内容なし）'}</div>
+      <div class="rmeta">${PAY_L[r.pay]||r.pay} · ${r.date}</div>
+      ${!isI ? `<span class="rbadge">${cat.e} ${cat.l}</span>` : ''}
+    </div>
+    <div class="ramt" style="color:${isI?'var(--grn)':'var(--red)'}">${isI?'+':'-'}${fmt(r.amount)}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+//  入力フォーム
+// ═══════════════════════════════════════════
+function selType(t) {
+  aType = t;
+  document.getElementById('btn-exp').className = 'tbtn'+(t==='expense'?' exp':'');
+  document.getElementById('btn-inc').className = 'tbtn'+(t==='income'?' inc':'');
+  document.getElementById('a-catsec').style.display = t==='expense' ? '' : 'none';
+}
+function selPay(pfx, p) {
+  if (pfx==='add') aPay=p; else ePay=p;
+  const pre = pfx==='add' ? 'a' : 'e';
+  ['cash','jal','jcb','visa'].forEach(x=>{
+    document.getElementById(pre+'-p-'+x).className='pchip'+(x===p?' on':'');
+  });
+}
+function submitRec() {
+  const date   = document.getElementById('a-date').value || toDay();
+  const desc   = document.getElementById('a-desc').value.trim();
+  const amount = parseFloat(document.getElementById('a-amt').value);
+  if (isNaN(amount)||amount<=0) { toast('金額を正しく入力してください','err'); return; }
+  recs.unshift({ id:uid(), type:aType, date, desc, amount, pay:aPay, cat:aType==='expense'?aCat:null });
+  save();
+  toast('追加しました ✓');
+  gotoView('home', document.querySelector('.nb'));
+}
+
+// ═══════════════════════════════════════════
+//  編集モーダル
+// ═══════════════════════════════════════════
+function openEdit(id) {
+  eId = id;
+  const r = recs.find(x=>x.id===id);
+  if (!r) return;
+  eType=r.type; ePay=r.pay||'cash'; eCat=r.cat||'food';
+  document.getElementById('e-date').value = r.date;
+  document.getElementById('e-desc').value = r.desc||'';
+  document.getElementById('e-amt').value  = r.amount;
+  eSelType(eType); selPay('edit',ePay);
+  buildCatGrid('e-catgrid','edit');
+  document.getElementById('e-catsec').style.display = eType==='expense'?'':'none';
+  ['evb-desc','evb-amt'].forEach(id=>{
+    const b=document.getElementById(id);
+    b.classList.remove('rec');
+    document.getElementById(id+'-lbl').textContent='タップして音声入力';
+  });
+  ['evs-desc','evs-amt'].forEach(id=>{ document.getElementById(id).className='vstat'; });
+  document.getElementById('mov').classList.add('on');
+}
+function closeMov(e) {
+  if (e.target===document.getElementById('mov')) {
+    document.getElementById('mov').classList.remove('on');
+    if (curRecog) { try{curRecog.stop();}catch(e){} curRecog=null; }
+  }
+}
+function eSelType(t) {
+  eType=t;
+  document.getElementById('e-btn-exp').className='tbtn'+(t==='expense'?' exp':'');
+  document.getElementById('e-btn-inc').className='tbtn'+(t==='income'?' inc':'');
+  document.getElementById('e-catsec').style.display=t==='expense'?'':'none';
+}
+function saveEdit() {
+  const r = recs.find(x=>x.id===eId);
+  if (!r) return;
+  const amount = parseFloat(document.getElementById('e-amt').value);
+  if (isNaN(amount)||amount<=0) { toast('金額を正しく入力してください','err'); return; }
+  r.type=eType; r.date=document.getElementById('e-date').value;
+  r.desc=document.getElementById('e-desc').value.trim();
+  r.amount=amount; r.pay=ePay;
+  r.cat=eType==='expense'?eCat:null;
+  save();
+  document.getElementById('mov').classList.remove('on');
+  toast('保存しました ✓');
+  renderHome(); renderHist();
+  if (document.getElementById('v-chart').classList.contains('on')) renderChart();
+}
+function deleteRec() {
+  if (!confirm('この記録を削除しますか？')) return;
+  recs = recs.filter(x=>x.id!==eId);
+  save();
+  document.getElementById('mov').classList.remove('on');
+  toast('削除しました');
+  renderHome(); renderHist();
+  if (document.getElementById('v-chart').classList.contains('on')) renderChart();
+}
+
+// ═══════════════════════════════════════════
+//  履歴
+// ═══════════════════════════════════════════
+function shiftHistMonth(d) {
+  hMonth = new Date(hMonth.getFullYear(), hMonth.getMonth()+d, 1);
+  renderHist();
+}
+function renderHist() {
+  const mk = mkey(hMonth);
+  document.getElementById('hist-mlbl').textContent = hMonth.getFullYear()+'年'+p2(hMonth.getMonth()+1)+'月';
+  const srt = [...recs].filter(r=>r.date.startsWith(mk)).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('hist-recs').innerHTML =
+    srt.length ? srt.map(rowHTML).join('') : '<div class="empty">この月の記録はありません</div>';
+}
+
+// ═══════════════════════════════════════════
+//  グラフ
+// ═══════════════════════════════════════════
+function loadChart() {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+  s.onload = () => renderChart();
+  document.head.appendChild(s);
+}
+function setPeriod(p, btn) {
+  cPer=p;
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('c-mnav').style.display = p==='month'?'none':'flex';
+  renderChart();
+}
+function shiftChartMonth(d) {
+  cMonth = new Date(cMonth.getFullYear(), cMonth.getMonth()+d, 1);
+  renderChart();
+}
+function renderChart() {
+  document.getElementById('c-mlbl').textContent = cMonth.getFullYear()+'年'+p2(cMonth.getMonth()+1)+'月';
+  if (typeof Chart==='undefined') return;
+
+  let labels=[],incD=[],expD=[],filtered=[];
+
+  if (cPer==='day') {
+    const mk = mkey(cMonth);
+    const dm = new Date(cMonth.getFullYear(), cMonth.getMonth()+1, 0).getDate();
+    for (let d=1;d<=dm;d++) {
+      const dt = cMonth.getFullYear()+'-'+p2(cMonth.getMonth()+1)+'-'+p2(d);
+      const dr = recs.filter(r=>r.date===dt);
+      labels.push(d+'日');
+      incD.push(dr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0));
+      expD.push(dr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0));
+    }
+    filtered = recs.filter(r=>r.date.startsWith(mk));
+
+  } else if (cPer==='week') {
+    const mk = mkey(cMonth);
+    for (let w=0;w<5;w++){labels.push('第'+(w+1)+'週');incD.push(0);expD.push(0);}
+    const first = new Date(cMonth.getFullYear(), cMonth.getMonth(), 1);
+    filtered = recs.filter(r=>r.date.startsWith(mk));
+    filtered.forEach(r=>{
+      const dd = Math.floor((new Date(r.date+'T00:00:00')-first)/86400000);
+      const w  = Math.min(Math.floor(dd/7),4);
+      if(r.type==='income') incD[w]+=r.amount; else expD[w]+=r.amount;
+    });
+
+  } else {
+    const y = new Date().getFullYear();
+    for (let m=0;m<12;m++) {
+      labels.push(p2(m+1)+'月');
+      const mk2=y+'-'+p2(m+1);
+      const mr=recs.filter(r=>r.date.startsWith(mk2));
+      incD.push(mr.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0));
+      expD.push(mr.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0));
+    }
+    filtered = recs;
+  }
+
+  const ctx = document.getElementById('myChart').getContext('2d');
+  if (cInst) { cInst.destroy(); cInst=null; }
+  Chart.defaults.color='#5a6078';
+  Chart.defaults.borderColor='#252a38';
+  Chart.defaults.font.family="'Hiragino Sans','Yu Gothic UI',sans-serif";
+
+  cInst = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'支出',data:expD,backgroundColor:'rgba(224,112,112,.72)',borderRadius:4,borderSkipped:false},
+        {label:'収入',data:incD,backgroundColor:'rgba(110,200,154,.72)',borderRadius:4,borderSkipped:false},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#8890a8',boxWidth:10,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#5a6078',font:{size:9},maxRotation:0}},
+        y:{grid:{color:'#252a38'},ticks:{color:'#5a6078',font:{size:9},callback:v=>v===0?'0':'$'+v}}
+      }
+    }
+  });
+
+  // サマリー
+  const tInc=incD.reduce((s,v)=>s+v,0);
+  const tExp=expD.reduce((s,v)=>s+v,0);
+  const bal =tInc-tExp;
+  document.getElementById('c-sum').innerHTML=`<div class="sumcard">
+    <div class="sumitem"><div class="sumlbl">収入</div><div class="sumval" style="color:var(--grn)">${fmt(tInc)}</div></div>
+    <div class="sdiv"></div>
+    <div class="sumitem"><div class="sumlbl">支出</div><div class="sumval" style="color:var(--red)">${fmt(tExp)}</div></div>
+    <div class="sdiv"></div>
+    <div class="sumitem"><div class="sumlbl">収支</div><div class="sumval" style="color:${bal>=0?'var(--grn)':'var(--red)'}">${(bal>=0?'+':'-')+fmt(bal)}</div></div>
+  </div>`;
+
+  // 支払方法別
+  const pt={cash:0,jal:0,jcb:0,visa:0};
+  filtered.filter(r=>r.type==='expense').forEach(r=>{ pt[r.pay||'cash']+=r.amount; });
+  const maxP=Math.max(...Object.values(pt),0.01);
+  document.getElementById('c-pay').innerHTML=
+    Object.entries(pt).map(([k,v])=>
+      `<div class="sbrow">
+        <div class="sblbl">${PAY_E[k]} ${PAY_L[k].replace('カード','')}</div>
+        <div class="sbbg"><div class="sbfill" style="width:${(v/maxP*100).toFixed(1)}%"></div></div>
+        <div class="sbval">${fmt(v)}</div>
+      </div>`
+    ).join('');
+
+  // カテゴリ別
+  const ct={};
+  filtered.filter(r=>r.type==='expense').forEach(r=>{ const c=r.cat||'other'; ct[c]=(ct[c]||0)+r.amount; });
+  const ca=Object.entries(ct).sort((a,b)=>b[1]-a[1]);
+  const maxC=Math.max(...ca.map(x=>x[1]),0.01);
+  document.getElementById('c-cat').innerHTML=ca.length
+    ? ca.map(([id,v])=>{ const c=catOf(id); return `<div class="sbrow">
+        <div class="sblbl">${c.e} ${c.l}</div>
+        <div class="sbbg"><div class="sbfill blue" style="width:${(v/maxC*100).toFixed(1)}%"></div></div>
+        <div class="sbval" style="color:var(--blue)">${fmt(v)}</div>
+      </div>`; }).join('')
+    : '<div class="empty" style="padding:14px 0">データがありません</div>';
+}
+
+// ═══════════════════════════════════════════
+//  トースト
+// ═══════════════════════════════════════════
+let _tt;
+function toast(msg, cls='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'on'+(cls?' '+cls:'');
+  clearTimeout(_tt);
+  _tt = setTimeout(()=>el.className='', 2400);
+}
+</script>
+</body>
+</html>
